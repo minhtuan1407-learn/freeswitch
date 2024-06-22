@@ -139,41 +139,12 @@
         ln -sf /usr/local/freeswitch/bin/fs_cli /usr/bin/fs_cli
         ln -sf /usr/local/freeswitch/bin/freeswitch /usr/bin/freeswitch
 
-    - name: Creating systemd service file for FreeSWITCH
-      copy:
-        dest: /etc/systemd/system/freeswitch.service
-        content: |
-          [Unit]
-          Description=FreeSWITCH
-          After=syslog.target network.target local-fs.target
+    - name: Start freeswitch with /usr/local/freeswitch/bin/freeswitch -ncwait -nonat -nonatmap
+      shell: /usr/local/freeswitch/bin/freeswitch -u root -g root -ncwait -nonat -nonatmap
+      async: 60
 
-          [Service]
-          Type=forking
-          Environment=DAEMON_OPTS="-nonat"
-          Environment=USER=freeswitch
-          Environment=GROUP=freeswitch
-          Environment=HOME=/usr/local/freeswitch
-          WorkingDirectory=/usr/local/freeswitch
-          User=freeswitch
-          Group=freeswitch
-          ExecStartPre=/bin/chown -R freeswitch:freeswitch /usr/local/freeswitch
-          ExecStartPre=/bin/mkdir -p /usr/local/freeswitch/run
-          ExecStartPre=/bin/chown -R freeswitch:freeswitch /usr/local/freeswitch/run
-          ExecStart=/usr/local/freeswitch/bin/freeswitch -u freeswitch -g freeswitch -ncwait -nonat -nonatmap
-          ExecReload=/bin/kill -HUP $MAINPID
-          TimeoutSec=45s
-          Restart=always
-          RestartSec=90
-
-          [Install]
-          WantedBy=multi-user.target
-
-    - name: Reload systemd daemon
-      systemd:
-        daemon_reload: yes
-
-    - name: Start service httpd, if not started
-      ansible.builtin.service:
-        name: freeswitch
-        enabled: true
-        state: started
+    - name: Wait for FreeSWITCH to start
+      wait_for:
+        port: 5060
+        delay: 5
+        timeout: 60
