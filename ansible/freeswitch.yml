@@ -3,7 +3,7 @@
 - name: Install Freeswitch 
   vars:
     signalwire_freeswitch_key: pat_aW3Nn6RBYfijPLeN8GjRLC2E
-    freeswitch_version: 'v1.10.7'
+    freeswitch_version: 'v1.10.10'
   hosts: localhost
   connection: local 
   remote_user: root
