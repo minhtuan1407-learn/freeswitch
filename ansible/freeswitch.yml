@@ -3,7 +3,7 @@
 - name: Install Freeswitch 
   vars:
     signalwire_freeswitch_key: pat_aW3Nn6RBYfijPLeN8GjRLC2E
-    freeswitch_version: 'v1.10.10'
+    freeswitch_version: 'fs-trainning-2024'
   hosts: localhost
   connection: local 
   remote_user: root
@@ -62,7 +62,7 @@
 
     - name: Cloning libks repository
       git:
-        repo: 'https://github.com/signalwire/libks.git'
+        repo: 'https://github.com/team-telnyx/libks.git'
         version: 'master'
         dest: /usr/local/src/libks
 
@@ -90,7 +90,7 @@
 
     - name: Cloning spandsp repository
       git:
-        repo: 'https://github.com/freeswitch/spandsp.git'
+        repo: 'https://github.com/spandsp/spandsp.git'
         version: 'master'
         dest: /usr/local/src/spandsp
 
