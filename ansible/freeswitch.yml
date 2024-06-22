@@ -3,66 +3,15 @@
 - name: Install Freeswitch 
   vars:
     signalwire_freeswitch_key: pat_aW3Nn6RBYfijPLeN8GjRLC2E
+    freeswitch_version: 'v1.10.7'
   hosts: localhost
   connection: local 
   remote_user: root
   tasks:
-    - name: Installing prerequisites
+    - name: Install cmake apt
       ansible.builtin.apt:
-        name:
-          - autoconf
-          - automake
-          - bison
-          - build-essential
-          - curl
-          - flex
-          - g++
-          - git
-          - libjpeg-dev
-          - libncurses5-dev
-          - libtool
-          - libtiff5-dev
-          - libtiff-tools
-          - libcurl4-openssl-dev
-          - libgdbm-dev
-          - libgmp-dev
-          - libogg-dev
-          - libsqlite3-dev
-          - libssl-dev
-          - libvorbis-dev
-          - libpcre3
-          - libpcre3-dev
-          - libspeex-dev
-          - libspeexdsp-dev
-          - libedit-dev
-          - libldns-dev
-          - libopus-dev
-          - libsndfile1-dev
-          - libtool-bin
-          - lua5.2
-          - lua5.2-dev
-          - pkg-config
-          - zlib1g-dev
-          - libavformat-dev
-          - libavresample-dev
-          - libswscale-dev
-          - libyuv-dev
-          - libvpx-dev
-          - nasm
-          - python3
-          - python3-dev
-          - python3-pip
-          - wget
-          - yasm
-          - libavcodec-dev
-          - libx264-dev
-          - libasound2-dev
-          - cmake
-          - ca-certificates
-          - libtool-bin
-          - sqlite3
-        update_cache: yes
-
+        name: cmake
+        state: present
     - name: Fetch FreeSWITCH GPG key
       get_url:
         url: https://freeswitch.signalwire.com/repo/deb/debian-release/signalwire-freeswitch-repo.gpg
@@ -87,24 +36,99 @@
         content: 'machine freeswitch.signalwire.com login signalwire password {{ signalwire_freeswitch_key }}'
       when: ansible_os_family == 'Debian' and ansible_distribution_major_version|int >= 10
 
-    - name: "Add SignalWire FreeSWITCH repo"
+    - name: Adding SignalWire FreeSWITCH binary and source repos
       ansible.builtin.apt_repository:
-        repo: deb [signed-by=/usr/share/keyrings/signalwire-freeswitch-repo.gpg] https://freeswitch.signalwire.com/repo/deb/debian-release/ {{ ansible_distribution_release }} main
+        repo: deb [signed-by=/usr/share/keyrings/signalwire-freeswitch-repo.gpg] https://freeswitch.signalwire.com/repo/deb/debian-release/ bullseye main
         state: present
         filename: freeswitch
       when: ansible_os_family == 'Debian' and ansible_distribution_major_version|int >= 10
-      
-    - name: Cloning FreeSWITCH v1.10.7
+
+    - name: Adding SignalWire FreeSWITCH binary and source repos
+      ansible.builtin.apt_repository:
+        repo: deb-src [signed-by=/usr/share/keyrings/signalwire-freeswitch-repo.gpg] https://freeswitch.signalwire.com/repo/deb/debian-release/ bullseye main
+        state: present
+        filename: freeswitch
+      when: ansible_os_family == 'Debian' and ansible_distribution_major_version|int >= 10
+
+    - name: Updating apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Installing build dependencies for FreeSWITCH
+      apt:
+        pkg: freeswitch
+        state: build-dep
+        force: yes
+
+    - name: Cloning libks repository
+      git:
+        repo: 'https://github.com/signalwire/libks.git'
+        version: 'master'
+        dest: /usr/local/src/libks
+
+    - name: Building and installing libks
+      shell: |
+        cd /usr/local/src/libks
+        cmake . -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/freeswitch/
+        make
+        make install
+        ldconfig
+
+    - name: Cloning libsignalwire repository
+      git:
+        repo: 'https://github.com/signalwire/signalwire-c.git'
+        version: 'master'
+        dest: /usr/local/src/signalwire-c
+
+    - name: Building and installing libsignalwire
+      shell: |
+        cd /usr/local/src/signalwire-c
+        cmake . -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/freeswitch/
+        make
+        make install
+        ldconfig
+
+    - name: Cloning spandsp repository
+      git:
+        repo: 'https://github.com/freeswitch/spandsp.git'
+        version: 'master'
+        dest: /usr/local/src/spandsp
+
+    - name: Building and installing spandsp
+      shell: |
+        cd /usr/local/src/spandsp
+        ./bootstrap.sh
+        ./configure --prefix=/usr/local/freeswitch/
+        make
+        make install
+        ldconfig
+
+    - name: Cloning sofia-sip repository
+      git:
+        repo: 'https://github.com/freeswitch/sofia-sip.git'
+        version: 'master'
+        dest: /usr/local/src/sofia-sip
+
+    - name: Building and installing sofia-sip
+      shell: |
+        cd /usr/local/src/sofia-sip
+        ./bootstrap.sh
+        ./configure
+        make
+        make install
+        ldconfig
+
+    - name: Cloning FreeSWITCH {{ freeswitch_version }}
       git:
         repo: 'https://github.com/signalwire/freeswitch.git'
-        version: 'v{{ freeswitch_version }}'
+        version: '{{ freeswitch_version }}'
         dest: /usr/local/src/freeswitch
 
     - name: Building FreeSWITCH
       shell: |
         cd /usr/local/src/freeswitch
         ./bootstrap.sh -j
-        ./configure -C
+        ./configure -C --prefix=/usr/local/freeswitch/
         make
         make install
         make all cd-sounds-install cd-moh-install
